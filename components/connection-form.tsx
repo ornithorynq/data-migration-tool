@@ -7,19 +7,25 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 
+interface ConnectionFormProps {
+  title?: string
+  dbLabel?: string
+  dbOptions?: string[]
+  showNext?: boolean
+  onNext?: () => void
+  onBack?: () => void
+  showBack?: boolean
+}
+
 export default function ConnectionForm({
   title = "Select Source",
   dbLabel = "Source DB",
   dbOptions = ["Oracle 11g", "Oracle 12c", "Oracle 19c"],
   showNext = true,
   onNext,
-}: {
-  title?: string
-  dbLabel?: string
-  dbOptions?: string[]
-  showNext?: boolean
-  onNext?: () => void
-}) {
+  onBack,
+  showBack = true,
+}: ConnectionFormProps) {
   const { toast } = useToast()
   const [checking, setChecking] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle')
@@ -91,11 +97,16 @@ export default function ConnectionForm({
           </Select>
         </div>
         <div className="flex items-center gap-3 pt-2">
+          {showBack && onBack && (
+            <Button type="button" variant="outline" onClick={onBack}>
+              Back
+            </Button>
+          )}
           <Button type="button" onClick={check} disabled={checking}>
             {checking ? "Checking..." : "Check connection"}
           </Button>
           {showNext && (
-            <Button type="button" variant="secondary" className="ml-auto" onClick={onNext}>
+            <Button type="button" className="ml-auto" onClick={onNext}>
               Next
             </Button>
           )}

@@ -52,6 +52,8 @@ export default function NewMigrationPage() {
               dbLabel="Source DB"
               dbOptions={["Oracle 11g", "Oracle 12c", "Oracle 18c", "Oracle 19c"]}
               onNext={next}
+              onBack={() => {}} // No back on first step
+              showBack={false}
             />
           )}
 
@@ -61,6 +63,8 @@ export default function NewMigrationPage() {
               dbLabel="Destination DB"
               dbOptions={["SQL Server 2016", "SQL Server 2019", "SQL Server 2022", "Azure SQL"]}
               onNext={next}
+              onBack={back}
+              showBack={true}
             />
           )}
 
@@ -69,7 +73,7 @@ export default function NewMigrationPage() {
               <MappingPreview />
 
               <div className="flex items-center gap-3">
-                <Button variant="secondary" onClick={back}>
+                <Button variant="outline" onClick={back}>
                   Back
                 </Button>
                 <Button variant="outline" onClick={saveDraft}>
@@ -89,8 +93,8 @@ export default function NewMigrationPage() {
             <div className="space-y-6">
               <h2 className="text-xl font-semibold">Pre-checks</h2>
               <PrecheckList show={true} />
-              <div className="flex items-center">
-                <Button variant="secondary" onClick={back}>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={back}>
                   Back
                 </Button>
                 <Button className="ml-auto" onClick={next}>

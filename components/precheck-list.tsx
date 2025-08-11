@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, XCircle, AlertTriangle, Info, ChevronDown, ChevronRight, Database, Table, Column } from "lucide-react"
+import { CheckCircle, XCircle, AlertTriangle, Info, ChevronDown, ChevronRight, Database, Table, Code } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type PrecheckIssue = {
@@ -206,7 +206,7 @@ export default function PrecheckList({ show = false }: { show?: boolean }) {
     switch (category) {
       case "Data Type Mismatch":
       case "Constraint Violation":
-        return <Column className="h-4 w-4" />
+        return <Code className="h-4 w-4" />
       case "Performance":
       case "Schema Validation":
         return <Table className="h-4 w-4" />
