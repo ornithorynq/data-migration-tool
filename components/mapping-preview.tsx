@@ -14,6 +14,7 @@ import {
   Settings, 
   CheckCircle,
   XCircle,
+  AlertTriangle,
   Database,
   Table,
   Code,
@@ -266,6 +267,14 @@ export default function MappingPreview() {
   // Store mapping configurations to remember them when tables are removed/re-added
   const [mappingMemory, setMappingMemory] = useState<Record<string, TableMapping>>({})
 
+  // Pre-check state
+  const [precheckState, setPrecheckState] = useState<'idle' | 'error' | 'warning' | 'success'>('idle')
+  const [isPrechecking, setIsPrechecking] = useState(false)
+
+  // Field-level validation state
+  const [fieldValidationErrors, setFieldValidationErrors] = useState<Record<string, string[]>>({})
+  const [fieldValidationWarnings, setFieldValidationWarnings] = useState<Record<string, string[]>>({})
+
   const toggleTableExpansion = (tableName: string) => {
     setExpandedTable(expandedTable === tableName ? null : tableName)
   }
@@ -296,8 +305,179 @@ export default function MappingPreview() {
       ...prev,
       [tableName]: newTables[tableIndex]
     }))
+  }
+
+  const performPrecheck = async () => {
+    setIsPrechecking(true)
     
-    console.log(`Updated tables:`, newTables)
+    // Simulate pre-check process
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // Cycle through states: error → warning → success
+    if (precheckState === 'idle' || precheckState === 'success') {
+      setPrecheckState('error')
+      // Generate field-level errors for error state
+      generateFieldValidationErrors('error')
+    } else if (precheckState === 'error') {
+      setPrecheckState('warning')
+      // Generate field-level warnings for warning state
+      generateFieldValidationErrors('warning')
+    } else if (precheckState === 'warning') {
+      setPrecheckState('success')
+      // Clear all field-level issues for success state
+      setFieldValidationErrors({})
+      setFieldValidationWarnings({})
+    }
+    
+    setIsPrechecking(false)
+  }
+
+  const generateFieldValidationErrors = (type: 'error' | 'warning') => {
+    if (type === 'error') {
+      // Generate critical field-level errors
+      const errors: Record<string, string[]> = {}
+      
+      // Add realistic validation errors
+      tables.forEach(table => {
+        const tableErrors: string[] = []
+        
+        table.columns.forEach(column => {
+          // NOT NULL constraint violation for CREATED_DATE
+          if (column.sourceColumn === 'CREATED_DATE' && column.nullable === false) {
+            tableErrors.push(`Column ${column.sourceColumn} has NOT NULL constraint but source data contains NULL values`)
+          }
+          
+          // Data type mismatch for specific columns
+          if (column.sourceColumn === 'AMOUNT' && column.sourceType.includes('NUMBER') && column.destinationType.includes('DECIMAL')) {
+            tableErrors.push(`Data type mismatch: ${column.sourceType} → ${column.destinationType} may cause precision loss`)
+          }
+          
+          // Missing destination mapping
+          if (!column.mapped) {
+            tableErrors.push(`Column ${column.sourceColumn} is not mapped to destination`)
+          }
+          
+          // Foreign key constraint issues
+          if (column.foreignKey && !column.mapped) {
+            tableErrors.push(`Foreign key column ${column.sourceColumn} must be mapped to maintain referential integrity`)
+          }
+          
+          // Primary key issues
+          if (column.primaryKey && !column.mapped) {
+            tableErrors.push(`Primary key column ${column.sourceColumn} must be mapped to destination`)
+          }
+          
+          // Data length issues
+          if (column.sourceType.includes('VARCHAR(50)') && column.destinationType.includes('VARCHAR(30)')) {
+            tableErrors.push(`Column ${column.sourceColumn} may truncate: ${column.sourceType} → ${column.destinationType}`)
+          }
+        })
+        
+        if (tableErrors.length > 0) {
+          errors[table.sourceTable] = tableErrors
+        }
+      })
+      
+      setFieldValidationErrors(errors)
+      setFieldValidationWarnings({})
+    } else if (type === 'warning') {
+      // Generate field-level warnings
+      const warnings: Record<string, string[]> = {}
+      
+      tables.forEach(table => {
+        const tableWarnings: string[] = []
+        
+        table.columns.forEach(column => {
+          // Performance warnings
+          if (column.sourceColumn === 'EMAIL' && !column.primaryKey) {
+            tableWarnings.push(`Column ${column.sourceColumn} should have an index for optimal performance`)
+          }
+          
+          // Data quality warnings
+          if (column.sourceColumn === 'PHONE' && column.sourceType.includes('VARCHAR')) {
+            tableWarnings.push(`Column ${column.sourceColumn} may benefit from data format validation`)
+          }
+          
+          // Schema warnings
+          if (column.sourceColumn === 'STATUS' && !column.mapped) {
+            tableWarnings.push(`Column ${column.sourceColumn} is unmapped - consider if this data is needed`)
+          }
+          
+          // Data type conversion warnings
+          if (column.sourceType.includes('DATE') && column.destinationType.includes('DATETIME2')) {
+            tableWarnings.push(`Date conversion: ${column.sourceType} → ${column.destinationType} may affect timezone handling`)
+          }
+          
+          // Unmapped columns warnings
+          if (!column.mapped && !column.primaryKey && !column.foreignKey) {
+            tableWarnings.push(`Column ${column.sourceColumn} is unmapped - review if this data is required`)
+          }
+        })
+        
+        if (tableWarnings.length > 0) {
+          warnings[table.sourceTable] = tableWarnings
+        }
+      })
+      
+      setFieldValidationWarnings(warnings)
+      setFieldValidationErrors({})
+    }
+  }
+
+  const getPrecheckStatus = () => {
+    switch (precheckState) {
+      case 'error':
+        return {
+          icon: '❌',
+          text: 'Pre-check Failed',
+          description: 'Critical issues detected. Please resolve before proceeding.',
+          color: 'text-red-600',
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200'
+        }
+      case 'warning':
+        return {
+          icon: '⚠️',
+          text: 'Pre-check Completed with Warnings',
+          description: 'Issues found but migration can proceed. Review recommended.',
+          color: 'text-yellow-600',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-200'
+        }
+      case 'success':
+        return {
+          icon: '✅',
+          text: 'Pre-check Passed',
+          description: 'All validation checks passed successfully!',
+          color: 'text-green-600',
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-200'
+        }
+      default:
+        return null
+    }
+  }
+
+  const getColumnValidationState = (tableName: string, columnName: string) => {
+    const tableErrors = fieldValidationErrors[tableName] || []
+    const tableWarnings = fieldValidationWarnings[tableName] || []
+    
+    const hasError = tableErrors.some(error => error.includes(columnName))
+    const hasWarning = tableWarnings.some(warning => warning.includes(columnName))
+    
+    if (hasError) return 'error'
+    if (hasWarning) return 'warning'
+    return 'valid'
+  }
+
+  const getColumnValidationMessage = (tableName: string, columnName: string) => {
+    const tableErrors = fieldValidationErrors[tableName] || []
+    const tableWarnings = fieldValidationWarnings[tableName] || []
+    
+    const error = tableErrors.find(error => error.includes(columnName))
+    const warning = tableWarnings.find(warning => warning.includes(columnName))
+    
+    return error || warning || null
   }
 
   const loadTable = (tableName: string) => {
@@ -706,10 +886,19 @@ export default function MappingPreview() {
             <div className="mt-8">
               <h3 className="text-lg font-semibold mb-4">Column Mapping: {selectedTableData.sourceTable}</h3>
               <div className="space-y-3">
-              {selectedTableData.columns.map((column, colIndex) => {
+                              {selectedTableData.columns.map((column, colIndex) => {
                 const tableIndex = tables.findIndex(t => t.sourceTable === selectedTable)
+                const validationState = getColumnValidationState(selectedTableData.sourceTable, column.sourceColumn)
+                const validationMessage = getColumnValidationMessage(selectedTableData.sourceTable, column.sourceColumn)
+                
                 return (
-                    <div key={column.sourceColumn} className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-center p-3 rounded-lg border hover:bg-muted/20 transition-colors">
+                    <div key={column.sourceColumn} className={`grid grid-cols-1 lg:grid-cols-3 gap-4 items-center p-3 rounded-lg border transition-all duration-200 ${
+                      validationState === 'error' 
+                        ? 'bg-red-50 border-red-200 hover:bg-red-100' 
+                        : validationState === 'warning'
+                        ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+                        : 'hover:bg-muted/20'
+                    }`}>
                       
                       {/* Source Column */}
                       <div className="flex items-center gap-3">
@@ -717,7 +906,7 @@ export default function MappingPreview() {
                           checked={column.mapped}
                           onCheckedChange={() => toggleColumnMapping(tableIndex, colIndex)}
                         />
-                        <div>
+                        <div className="flex-1">
                           <div className="font-medium">{column.sourceColumn}</div>
                           <div className="text-sm text-muted-foreground">({column.sourceType})</div>
                           <div className="flex items-center gap-2 mt-1">
@@ -730,38 +919,55 @@ export default function MappingPreview() {
                               Sample: {column.sampleData.slice(0, 3).join(', ')}
                             </div>
                           )}
+                          
+                          {/* Field-level validation message */}
+                          {validationMessage && (
+                            <div className={`mt-2 text-xs px-2 py-1 rounded ${
+                              validationState === 'error'
+                                ? 'text-red-700 bg-red-100 border border-red-200'
+                                : 'text-yellow-700 bg-yellow-100 border border-yellow-200'
+                            }`}>
+                              {validationMessage}
+                            </div>
+                          )}
                         </div>
                       </div>
                       
                       {/* Mapping Arrow */}
                       <div className="flex justify-center">
                         <ArrowLeftRight className="h-5 w-5 text-purple-500" />
-                    </div>
+                      </div>
                     
                       {/* Destination Column */}
                       <div>
-                      <Select 
-                        value={column.destinationColumn}
-                        onValueChange={(value) => updateColumnMapping(tableIndex, colIndex, 'destinationColumn', value)}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value={column.sourceColumn}>{column.sourceColumn}</SelectItem>
-                            <SelectItem value={`${column.sourceColumn}_New`}>{column.sourceColumn}_New</SelectItem>
-                            <SelectItem value={`${column.sourceColumn}_Mapped`}>{column.sourceColumn}_Mapped</SelectItem>
-                            <SelectItem value={`${column.sourceColumn}_ID`}>{column.sourceColumn}_ID</SelectItem>
-                            <SelectItem value={`${column.sourceColumn}_Name`}>{column.sourceColumn}_Name</SelectItem>
-                            <SelectItem value={`${column.sourceColumn}_Description`}>{column.sourceColumn}_Description</SelectItem>
-                            <SelectItem value={`${column.sourceColumn}_Date`}>{column.sourceColumn}_Date</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <Select 
+                          value={column.destinationColumn}
+                          onValueChange={(value) => updateColumnMapping(tableIndex, colIndex, 'destinationColumn', value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value={column.sourceColumn}>{column.sourceColumn}</SelectItem>
+                              <SelectItem value={`${column.sourceColumn}_New`}>{column.sourceColumn}_New</SelectItem>
+                              <SelectItem value={`${column.sourceColumn}_Mapped`}>{column.sourceColumn}_Mapped</SelectItem>
+                              <SelectItem value={`${column.sourceColumn}_ID`}>{column.sourceColumn}_ID</SelectItem>
+                              <SelectItem value={`${column.sourceColumn}_Name`}>{column.sourceColumn}_Name</SelectItem>
+                              <SelectItem value={`${column.sourceColumn}_Description`}>{column.sourceColumn}_Description</SelectItem>
+                              <SelectItem value={`${column.sourceColumn}_Date`}>{column.sourceColumn}_Date</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <div className="mt-1 text-sm text-muted-foreground">
-                        Type: {column.destinationType}
+                          Type: {column.destinationType}
                         </div>
                         <div className="mt-1">
-                          {getValidationIcon(column.validation)}
+                          {validationState === 'error' ? (
+                            <XCircle className="h-4 w-4 text-red-600" />
+                          ) : validationState === 'warning' ? (
+                            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                          ) : (
+                            getValidationIcon(column.validation)
+                          )}
                         </div>
                       </div>
                     </div>
@@ -770,15 +976,45 @@ export default function MappingPreview() {
               </div>
             </div>
 
+            {/* Pre-check Status Display */}
+            {precheckState !== 'idle' && (
+              <div className={`mt-6 p-4 rounded-lg border-2 ${getPrecheckStatus()?.borderColor} ${getPrecheckStatus()?.bgColor}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{getPrecheckStatus()?.icon}</span>
+                  <div>
+                    <h4 className={`font-semibold ${getPrecheckStatus()?.color}`}>
+                      {getPrecheckStatus()?.text}
+                    </h4>
+                    <p className="text-sm text-gray-700">
+                      {getPrecheckStatus()?.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons - Wireframe Layout */}
             <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t">
               <Button variant="outline" size="lg">
                 <Save className="h-4 w-4 mr-2" />
                 Save as Draft
               </Button>
-              <Button size="lg">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Perform Pre-check
+              <Button 
+                size="lg" 
+                onClick={performPrecheck}
+                disabled={isPrechecking}
+              >
+                {isPrechecking ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Running Pre-check...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Perform Pre-check
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
@@ -787,8 +1023,8 @@ export default function MappingPreview() {
 
       {/* Table Picker Modal */}
       {showTablePicker && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Load Table from Oracle Database</h2>
               <Button variant="outline" onClick={() => setShowTablePicker(false)}>✕</Button>
@@ -825,7 +1061,7 @@ export default function MappingPreview() {
                 return (
                   <div 
                     key={table.name}
-                    className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    className="border rounded-lg p-4 hover:shadow-lg hover:border-blue-300 transition-all duration-200 cursor-pointer bg-white hover:bg-blue-50/30"
                     onClick={() => loadTable(table.name)}
                   >
                     <div className="flex items-start gap-3">

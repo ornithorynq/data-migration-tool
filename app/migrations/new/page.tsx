@@ -7,9 +7,11 @@ import Stepper from "@/components/stepper"
 import ConnectionForm from "@/components/connection-form"
 import MappingPreview from "@/components/mapping-preview"
 import PrecheckList from "@/components/precheck-list"
+import MigrationFinalize from "@/components/migration-finalize"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+
 
 export default function NewMigrationPage() {
   const [step, setStep] = useState(1)
@@ -17,18 +19,24 @@ export default function NewMigrationPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const next = () => setStep((s) => Math.min(4, s + 1))
+  const next = () => setStep((s) => Math.min(5, s + 1))
   const back = () => setStep((s) => Math.max(1, s - 1))
 
-  const performChecks = async () => {
-    setShowIssues(false)
-    await new Promise((r) => setTimeout(r, 600))
-    setShowIssues(true)
-  }
+
 
   const startMigration = async () => {
-    toast({ title: "Migration started", description: "We queued your migration for processing." })
+    toast({ 
+      title: "Migration Started!", 
+      description: "Your migration has been queued and will begin processing shortly. You can monitor progress from the dashboard."
+    })
     router.push("/dashboard")
+  }
+
+  const saveDraft = () => {
+    toast({ 
+      title: "Draft Saved", 
+      description: "Your migration configuration has been saved as a draft. You can continue working on it later."
+    })
   }
 
   return (
@@ -59,13 +67,19 @@ export default function NewMigrationPage() {
           {step === 3 && (
             <div className="space-y-6">
               <MappingPreview />
+
               <div className="flex items-center gap-3">
                 <Button variant="secondary" onClick={back}>
                   Back
                 </Button>
-                <Button variant="outline">Save as draft</Button>
-                <Button className="ml-auto" onClick={performChecks}>
-                  Perform pre-checks
+                <Button variant="outline" onClick={saveDraft}>
+                  Save as draft
+                </Button>
+                <Button 
+                  className="ml-auto" 
+                  onClick={next}
+                >
+                  Next
                 </Button>
               </div>
             </div>
@@ -79,11 +93,19 @@ export default function NewMigrationPage() {
                 <Button variant="secondary" onClick={back}>
                   Back
                 </Button>
-                <Button className="ml-auto" onClick={startMigration}>
-                  Start Migration
+                <Button className="ml-auto" onClick={next}>
+                  Continue to Finalize
                 </Button>
               </div>
             </div>
+          )}
+
+          {step === 5 && (
+            <MigrationFinalize
+              onStartMigration={startMigration}
+              onBack={back}
+              onSaveDraft={saveDraft}
+            />
           )}
         </Card>
       </main>
