@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, Download, MoreHorizontal, Eye, Trash2, Pause, Play } from "lucide-react"
+import { Search, Filter, Download, MoreHorizontal, Eye, Trash2, Pause, Play, ArrowUpDown } from "lucide-react"
 import { sampleMigrations, sampleUsers } from "@/lib/sample-data"
 import { StatusBadge } from "@/components/status-badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -18,6 +18,8 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [userFilter, setUserFilter] = useState<string>("all")
+  const [sortField, setSortField] = useState<string>("startedAt")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
   // Get user display names for filtering
   const getUserDisplayName = (username: string) => {
@@ -31,14 +33,49 @@ export default function AdminPage() {
   }))
   const statuses = ["Success", "Running", "Error", "Pending", "Draft"]
 
-  const filteredMigrations = sampleMigrations.filter(migration => {
+  const filteredAndSortedMigrations = sampleMigrations.filter(migration => {
     const matchesSearch = migration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          migration.owner.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === "all" || migration.status === statusFilter
     const matchesUser = userFilter === "all" || migration.owner === userFilter
     
     return matchesSearch && matchesStatus && matchesUser
+  }).sort((a, b) => {
+    let aValue: any
+    let bValue: any
+
+    switch (sortField) {
+      case "startedAt":
+        aValue = new Date(a.startedAt).getTime()
+        bValue = new Date(b.startedAt).getTime()
+        break
+      case "name":
+        aValue = a.name.toLowerCase()
+        bValue = b.name.toLowerCase()
+        break
+      case "status":
+        aValue = a.status
+        bValue = b.status
+        break
+      default:
+        return 0
+    }
+
+    if (sortDirection === "asc") {
+      return aValue > bValue ? 1 : -1
+    } else {
+      return aValue < bValue ? 1 : -1
+    }
   })
+
+  const toggleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("desc")
+    }
+  }
 
   const getStatusCount = (status: string) => {
     return sampleMigrations.filter(m => m.status === status).length
@@ -114,71 +151,112 @@ export default function AdminPage() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Unified Migration Management and Table */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Migration Management</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search migrations or users..."
-                  className="pl-8"
-                />
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              {/* Search and Status Filter */}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search migrations or users..."
+                    className="pl-8 w-64"
+                  />
+                </div>
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses ({sampleMigrations.length})</SelectItem>
+                    {statuses.map(status => (
+                      <SelectItem key={status} value={status}>
+                        {status} ({getStatusCount(status)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={userFilter} onValueChange={setUserFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filter by user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users ({sampleMigrations.length})</SelectItem>
+                    {users.map(user => (
+                      <SelectItem key={user.value} value={user.value}>
+                        {user.label} ({getUserCount(user.value)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  {statuses.map(status => (
-                    <SelectItem key={status} value={status}>
-                      {status} ({getStatusCount(status)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={userFilter} onValueChange={setUserFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by user" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {users.map(user => (
-                    <SelectItem key={user.value} value={user.value}>
-                      {user.label} ({getUserCount(user.value)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Migrations Table */}
-        <Card>
-          <CardContent className="p-0">
+            {/* Results Summary */}
+            <div className="mb-4 text-sm text-muted-foreground">
+              Showing {filteredAndSortedMigrations.length} of {sampleMigrations.length} migrations
+              {(statusFilter !== "all" || userFilter !== "all") && (
+                <span>
+                  {statusFilter !== "all" && ` (filtered by ${statusFilter})`}
+                  {userFilter !== "all" && ` (filtered by ${getUserDisplayName(userFilter)})`}
+                </span>
+              )}
+            </div>
+
+            {/* Migrations Table */}
             <div className="overflow-x-auto">
               <table className="w-full caption-bottom text-sm">
                 <thead className="[&_th]:text-muted-foreground">
                   <tr className="border-b">
                     <th className="whitespace-nowrap px-3 py-2 text-left font-medium">User</th>
-                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium">Date Started</th>
-                    <th className="px-3 py-2 text-left font-medium">Migration Name</th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-medium">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleSort("startedAt")}
+                        className="h-auto p-0 font-medium hover:bg-transparent"
+                      >
+                        Date Started
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleSort("name")}
+                        className="h-auto p-0 font-medium hover:bg-transparent"
+                      >
+                        Migration Name
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </th>
                     <th className="px-3 py-2 text-left font-medium">Source</th>
                     <th className="px-3 py-2 text-left font-medium">Destination</th>
-                    <th className="px-3 py-2 text-left font-medium">Status</th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleSort("status")}
+                        className="h-auto p-0 font-medium hover:bg-transparent"
+                      >
+                        Status
+                        <ArrowUpDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </th>
                     <th className="whitespace-nowrap px-3 py-2 text-left font-medium">Last Update</th>
                     <th className="px-3 py-2 text-left font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMigrations.map((migration) => (
+                  {filteredAndSortedMigrations.map((migration) => (
                     <tr key={migration.id} className="border-b last:border-0 hover:bg-muted/40">
                       <td className="whitespace-nowrap px-3 py-3">
                         <div className="flex items-center gap-2">
@@ -241,15 +319,15 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-            
-            {filteredMigrations.length === 0 && (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-center">
-                  <p className="text-muted-foreground">No migrations found matching your filters.</p>
+              
+              {filteredAndSortedMigrations.length === 0 && (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <p className="text-muted-foreground">No migrations found matching your filters.</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
       </main>

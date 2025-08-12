@@ -714,100 +714,31 @@ export default function MappingPreview() {
         </Select>
       </div>
 
-      {/* Table Selection */}
-        <Card>
-          <CardHeader>
+      {/* Main Mapping Interface - Wireframe Layout */}
+      <Card>
+        <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl">Loaded Tables</CardTitle>
-              <p className="text-muted-foreground">Tables currently loaded for mapping configuration</p>
+              <CardTitle className="text-xl">Mapping Configuration</CardTitle>
+              <p className="text-muted-foreground">Configure table and column mappings between source and destination</p>
             </div>
             <Button 
-              onClick={() => setShowTablePicker(true)}
+              variant="outline"
+              onClick={() => setShowSampleData(!showSampleData)}
               className="flex items-center gap-2"
             >
-              <FolderOpen className="h-4 w-4" />
-              Load Table
+              {showSampleData ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showSampleData ? "Hide Sample Data" : "Show Sample Data"}
             </Button>
           </div>
-          </CardHeader>
-          <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {filteredTables.map((table) => (
-                  <div 
-                key={table.sourceTable}
-                    className={cn(
-                  "cursor-pointer rounded-lg border p-3 transition-all hover:shadow-sm relative group",
-                  selectedTable === table.sourceTable ? "border-blue-500 bg-blue-50 shadow-md" : "hover:bg-muted/40"
-                    )}
-                    onClick={() => setSelectedTable(table.sourceTable)}
-                  >
-                {/* Remove Button - Shows on Hover */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                  className="absolute -top-2 -right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                    removeTable(table.sourceTable)
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                      </Button>
-                
-                <div className="text-center">
-                  <div className="font-medium text-sm">{table.sourceTable}</div>
-                  <div className="text-xs text-muted-foreground">→ {table.destinationTable}</div>
-                  <Badge className={cn("mt-2 text-xs", getStatusColor(table.status))}>
-                    {table.status === 'validated' ? 'Complete' : 
-                     table.status === 'mapped' ? 'Ready' : 
-                     table.status === 'error' ? 'Issues' : 'Need Setup'}
-                    </Badge>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {table.rowCount?.toLocaleString()} rows
-                  </div>
-                </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-      {/* Main Mapping Interface - Wireframe Layout */}
-      {selectedTableData && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl">
-                  {selectedTableData.sourceTable} → {selectedTableData.destinationTable}
-                </CardTitle>
-                <p className="text-muted-foreground mt-1">
-                  {mappedColumnsCount} of {totalColumnsCount} columns mapped
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {selectedTableData.description}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowSampleData(!showSampleData)}
-                >
-                  {showSampleData ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                  {showSampleData ? 'Hide' : 'Show'} Sample Data
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
+        </CardHeader>
           <CardContent>
             {/* Wireframe Layout: Left (Source) | Middle (Mapping) | Right (Destination) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
               {/* Left Side - Source DB (Oracle) */}
               <div className="space-y-3">
-                <div className="bg-blue-100 border-2 border-blue-300 rounded-lg p-4">
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 shadow-sm">
                   <div className="text-center mb-3">
                     <Database className="h-6 w-6 text-blue-600 mx-auto mb-2" />
                     <div className="font-bold text-blue-900">Source Database</div>
@@ -815,20 +746,36 @@ export default function MappingPreview() {
                   </div>
                   
                   {/* Source Tables */}
-            <div className="space-y-2">
+                  <div className="space-y-2">
                     <div className="text-xs font-medium text-blue-700 mb-2">Tables:</div>
                     {filteredTables.map((table) => (
                       <div 
                         key={table.sourceTable}
                         className={cn(
-                          "cursor-pointer rounded p-2 text-xs transition-colors",
-                          selectedTable === table.sourceTable ? "bg-blue-200" : "bg-blue-50 hover:bg-blue-100"
+                          "flex items-center gap-2 cursor-pointer rounded p-2 text-xs transition-colors min-h-[3rem]",
+                          selectedTable === table.sourceTable ? "bg-blue-100 shadow-sm border border-blue-300" : "bg-blue-50/80 hover:bg-blue-100",
+                          table.configured && "ring-2 ring-blue-400 ring-opacity-50"
                         )}
                         onClick={() => setSelectedTable(table.sourceTable)}
                       >
-                        <div className="font-medium text-blue-900">{table.sourceTable}</div>
-                        <div className="text-blue-600">
-                          {table.configured ? 'Configured' : 'Not Configured'}
+                        <Checkbox 
+                          checked={table.configured}
+                          onCheckedChange={(checked) => {
+                            const newTables = [...tables]
+                            const tableIndex = newTables.findIndex(t => t.sourceTable === table.sourceTable)
+                            if (tableIndex !== -1) {
+                              newTables[tableIndex].configured = checked as boolean
+                              setTables(newTables)
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 data-[state=checked]:text-white data-[state=unchecked]:bg-white data-[state=unchecked]:border-blue-300 data-[state=unchecked]:hover:border-blue-400 data-[state=unchecked]:hover:bg-blue-50 transition-all duration-200 shadow-sm"
+                        />
+                        <div className="flex-1 flex flex-col justify-center">
+                          <div className="font-medium text-blue-900">{table.sourceTable}</div>
+                          <div className="text-blue-600">
+                            {table.configured ? 'Configured' : 'Not Configured'}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -839,8 +786,8 @@ export default function MappingPreview() {
               {/* Middle - Mapping Arrows */}
               <div className="flex flex-col items-center justify-center space-y-4">
                 <div className="text-center">
-                  <ArrowLeftRight className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                  <div className="text-sm font-medium text-purple-700">Data Flow</div>
+                  <ArrowLeftRight className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                  <div className="text-sm font-medium text-blue-700">Data Flow</div>
                 </div>
                 
                 {/* Column Mapping Status */}
@@ -848,11 +795,22 @@ export default function MappingPreview() {
                   <div className="text-2xl font-bold text-blue-600">{mappedColumnsCount}</div>
                   <div className="text-sm text-muted-foreground">Columns Mapped</div>
                 </div>
+
+                {/* Load Table Button - Moved here from Loaded Tables section */}
+                <div className="pt-4">
+                  <Button 
+                    onClick={() => setShowTablePicker(true)}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    Load Table
+                  </Button>
+                </div>
               </div>
 
               {/* Right Side - Destination DB (SQL Server) */}
               <div className="space-y-3">
-                <div className="bg-green-100 border-2 border-green-300 rounded-lg p-4">
+                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 shadow-sm">
                   <div className="text-center mb-3">
                     <Database className="h-6 w-6 text-green-600 mx-auto mb-2" />
                     <div className="font-bold text-green-900">Destination Database</div>
@@ -866,88 +824,91 @@ export default function MappingPreview() {
                       <div 
                         key={table.destinationTable}
                         className={cn(
-                          "cursor-pointer rounded p-2 text-xs transition-colors",
-                          selectedTable === table.sourceTable ? "bg-green-200" : "bg-green-50 hover:bg-green-100"
+                          "cursor-pointer rounded p-2 text-xs transition-colors min-h-[3rem] flex flex-col justify-center",
+                          selectedTable === table.sourceTable ? "bg-green-100 shadow-sm border border-green-300" : "bg-green-50/80 hover:bg-green-100"
                         )}
                         onClick={() => setSelectedTable(table.sourceTable)}
                       >
-                        <div className="font-medium text-green-900">{table.destinationTable}</div>
+                        <div className="font-medium text-green-900">
+                          {table.configured ? table.destinationTable : ''}
+                        </div>
                         <div className="text-green-600">
                           {table.configured ? 'Configured' : 'Not Configured'}
-                  </div>
-                </div>
-              ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
       </div>
 
             {/* Column Mapping Details */}
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold mb-4">Column Mapping: {selectedTableData.sourceTable}</h3>
-              <div className="space-y-3">
-                              {selectedTableData.columns.map((column, colIndex) => {
-                const tableIndex = tables.findIndex(t => t.sourceTable === selectedTable)
-                const validationState = getColumnValidationState(selectedTableData.sourceTable, column.sourceColumn)
-                const validationMessage = getColumnValidationMessage(selectedTableData.sourceTable, column.sourceColumn)
-                
-                return (
-                    <div key={column.sourceColumn} className={`grid grid-cols-1 lg:grid-cols-3 gap-4 items-center p-3 rounded-lg border transition-all duration-200 ${
-                      validationState === 'error' 
-                        ? 'bg-red-50 border-red-200 hover:bg-red-100' 
-                        : validationState === 'warning'
-                        ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
-                        : 'hover:bg-muted/20'
-                    }`}>
-                      
-                      {/* Source Column */}
-                      <div className="flex items-center gap-3">
-                        <Checkbox 
-                          checked={column.mapped}
-                          onCheckedChange={() => toggleColumnMapping(tableIndex, colIndex)}
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium">{column.sourceColumn}</div>
-                          <div className="text-sm text-muted-foreground">({column.sourceType})</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            {column.primaryKey && <Badge variant="secondary" className="text-xs">PK</Badge>}
-                            {column.foreignKey && <Badge variant="outline" className="text-xs">FK</Badge>}
-                            {!column.nullable && <Badge variant="destructive" className="text-xs">NOT NULL</Badge>}
-                          </div>
-                          {showSampleData && column.sampleData && (
-                            <div className="text-xs text-blue-600 mt-1">
-                              Sample: {column.sampleData.slice(0, 3).join(', ')}
-                            </div>
-                          )}
-                          
-                          {/* Field-level validation message */}
-                          {validationMessage && (
-                            <div className={`mt-2 text-xs px-2 py-1 rounded ${
-                              validationState === 'error'
-                                ? 'text-red-700 bg-red-100 border border-red-200'
-                                : 'text-yellow-700 bg-yellow-100 border border-yellow-200'
-                            }`}>
-                              {validationMessage}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Mapping Arrow */}
-                      <div className="flex justify-center">
-                        <ArrowLeftRight className="h-5 w-5 text-purple-500" />
-                      </div>
+            {selectedTableData && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">Column Mapping: {selectedTableData.sourceTable}</h3>
+                <div className="space-y-3">
+                  {selectedTableData.columns.map((column, colIndex) => {
+                    const tableIndex = tables.findIndex(t => t.sourceTable === selectedTable)
+                    const validationState = getColumnValidationState(selectedTableData.sourceTable, column.sourceColumn)
+                    const validationMessage = getColumnValidationMessage(selectedTableData.sourceTable, column.sourceColumn)
                     
-                      {/* Destination Column */}
-                      <div>
-                        <Select 
-                          value={column.destinationColumn}
-                          onValueChange={(value) => updateColumnMapping(tableIndex, colIndex, 'destinationColumn', value)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
+                    return (
+                      <div key={column.sourceColumn} className={`grid grid-cols-1 lg:grid-cols-3 gap-4 items-center p-3 rounded-lg border transition-all duration-200 ${
+                        validationState === 'error' 
+                          ? 'bg-red-50 border-red-200 hover:bg-red-100' 
+                          : validationState === 'warning'
+                          ? 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+                          : 'hover:bg-muted/20'
+                      }`}>
+                        
+                        {/* Source Column */}
+                        <div className="flex items-center gap-3">
+                          <Checkbox 
+                            checked={column.mapped}
+                            onCheckedChange={() => toggleColumnMapping(tableIndex, colIndex)}
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">{column.sourceColumn}</div>
+                            <div className="text-sm text-muted-foreground">({column.sourceType})</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              {column.primaryKey && <Badge variant="secondary" className="text-xs">PK</Badge>}
+                              {column.foreignKey && <Badge variant="outline" className="text-xs">FK</Badge>}
+                              {!column.nullable && <Badge variant="destructive" className="text-xs">NOT NULL</Badge>}
+                            </div>
+                            {showSampleData && column.sampleData && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                Sample: {column.sampleData.slice(0, 3).join(', ')}
+                              </div>
+                            )}
+                            
+                            {/* Field-level validation message */}
+                            {validationMessage && (
+                              <div className={`mt-2 text-xs px-2 py-1 rounded ${
+                                validationState === 'error'
+                                  ? 'text-red-700 bg-red-100 border border-red-200'
+                                  : 'text-yellow-700 bg-yellow-100 border border-yellow-200'
+                              }`}>
+                                {validationMessage}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Mapping Arrow */}
+                        <div className="flex justify-center">
+                          <ArrowLeftRight className="h-5 w-5 text-blue-500" />
+                        </div>
+                      
+                        {/* Destination Column */}
+                        <div>
+                          <Select 
+                            value={column.destinationColumn}
+                            onValueChange={(value) => updateColumnMapping(tableIndex, colIndex, 'destinationColumn', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
                               <SelectItem value={column.sourceColumn}>{column.sourceColumn}</SelectItem>
                               <SelectItem value={`${column.sourceColumn}_New`}>{column.sourceColumn}_New</SelectItem>
                               <SelectItem value={`${column.sourceColumn}_Mapped`}>{column.sourceColumn}_Mapped</SelectItem>
@@ -955,26 +916,27 @@ export default function MappingPreview() {
                               <SelectItem value={`${column.sourceColumn}_Name`}>{column.sourceColumn}_Name</SelectItem>
                               <SelectItem value={`${column.sourceColumn}_Description`}>{column.sourceColumn}_Description</SelectItem>
                               <SelectItem value={`${column.sourceColumn}_Date`}>{column.sourceColumn}_Date</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <div className="mt-1 text-sm text-muted-foreground">
-                          Type: {column.destinationType}
-                        </div>
-                        <div className="mt-1">
-                          {validationState === 'error' ? (
-                            <XCircle className="h-4 w-4 text-red-600" />
-                          ) : validationState === 'warning' ? (
-                            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                          ) : (
-                            getValidationIcon(column.validation)
-                          )}
+                            </SelectContent>
+                          </Select>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            Type: {column.destinationType}
+                          </div>
+                          <div className="mt-1">
+                            {validationState === 'error' ? (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            ) : validationState === 'warning' ? (
+                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                            ) : (
+                              getValidationIcon(column.validation)
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Pre-check Status Display */}
             {precheckState !== 'idle' && (
@@ -993,16 +955,13 @@ export default function MappingPreview() {
               </div>
             )}
 
-            {/* Action Buttons - Wireframe Layout */}
-            <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t">
-              <Button variant="outline" size="lg">
-                <Save className="h-4 w-4 mr-2" />
-                Save as Draft
-              </Button>
+            {/* Action Buttons - Pre-check Only */}
+            <div className="flex items-center justify-center mt-8 pt-6 border-t">
               <Button 
                 size="lg" 
                 onClick={performPrecheck}
                 disabled={isPrechecking}
+                variant="outline"
               >
                 {isPrechecking ? (
                   <>
@@ -1019,7 +978,6 @@ export default function MappingPreview() {
             </div>
           </CardContent>
         </Card>
-      )}
 
       {/* Table Picker Modal */}
       {showTablePicker && (

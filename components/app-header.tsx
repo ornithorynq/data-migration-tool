@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Database, PlusCircle, User, Settings, LogOut, Shield, Activity } from 'lucide-react'
+import { Database, User, Settings, LogOut, Shield, Activity } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { currentUser } from "@/lib/sample-data"
@@ -13,7 +13,6 @@ export default function AppHeader() {
 
   const nav = [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/migrations/new", label: "New Migration" },
     { href: "/templates", label: "Templates & Drafts" },
     { href: "/admin", label: "Admin" },
   ]
@@ -41,12 +40,6 @@ export default function AppHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <Button asChild size="sm" className="hidden sm:flex">
-            <Link href="/migrations/new">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Migration
-            </Link>
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="rounded-full px-3" aria-label="Profile">
