@@ -684,7 +684,7 @@ export default function MappingPreview() {
       <div className="text-center space-y-2">
         <h2 className="text-3xl font-bold">Database Migration Mapping</h2>
         <p className="text-muted-foreground text-lg">
-          Step 3: Configure table and column mappings from Oracle to SQL Server
+          Configure table and column mappings from Oracle to SQL Server
         </p>
       </div>
 
